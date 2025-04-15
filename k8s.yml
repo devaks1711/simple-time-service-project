@@ -1,0 +1,79 @@
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: simple-time-service-app-pdb
+  namespace: test
+  labels:
+    app: simple-time-service-app
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: simple-time-service-app
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: simple-time-service-app-service
+  namespace: test
+  labels:
+    app: simple-time-service-app
+spec:
+  selector:
+    app: simple-time-service-app
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+  type: ClusterIP  # Required for GCE ingress
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: simple-time-service-app-deployment
+  namespace: sample
+  labels:
+    app: simple-time-service-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simple-time-service-app
+  template:
+    metadata:
+      labels:
+        app: simple-time-service-app
+    spec:
+      containers:
+      - name: simple-time-service-app
+        image: 298425607132.dkr.ecr.ap-southeast-2.amazonaws.com/log-generator-app:latest
+        resources:
+          limits:
+            cpu: "200m"
+            memory: "400Mi"
+          requests:
+            cpu: "100m"
+            memory: "200Mi"
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: simple-time-service-app-hpa
+  namespace: sample
+  labels:
+    app: simple-time-service-app
+spec:
+  scaleTargetRef:
+    kind: Deployment
+    name: simple-time-service-app-deployment
+    apiVersion: apps/v1
+  minReplicas: 1
+  maxReplicas: 1
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
